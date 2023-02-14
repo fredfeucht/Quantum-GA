@@ -1300,7 +1300,6 @@ wz = w.value[3]
 
 # we might need a bigger float for this
 
-
 v1 = e1                                 # photon direction
 k1 = 2*pi/2.00e-11                      # photon wave number
 w1 = e1*cos(pi*8/16)+e2*sin(pi*8/16)    # particle one boost direction
@@ -1314,55 +1313,6 @@ m2 = m_0                                # particle two is a massive photon
 m3 = Me                                 # particle three is a electron
 m4 = m_0                                # particle four is a massive photon
 theta = pi*30/180
-
-# calculate input state paravectors
-
-s1 = cosh(b1)+w1*sinh(b1)               # particle one boost
-s2 = cosh(b2)+w2*sinh(b2)               # particle two boost
-
-ST1 = m1*s1                             # particle one state paravector
-ST2 = m2*s2                             # particle two state paravector
-STI = ST1+ST2                           # total paravector state
-
-mi = STI.dePara()[0]                    # total paravector mass
-bi = STI.dePara()[1]                    # total paravector boost rapidity
-vi = STI.dePara()[2]                    # total paravector boost direction
-si = cosh(bi)+vi*sinh(bi)               # total paravector boost
-
-bb = (w1^w2)/abs(w1^w2)                 # plane of the interaction
-sg = np.sign(((w2^vi)/bb).zero)         # handedness of the interaction
-ri = np.arccos((vi|w2).zero)            # angle from w2 to the total boost 
-b4 = qga.rapido(sg*(ri+theta), si, s2)  # calculate ouput rapidity
-rr = e**(bb*theta/2)                    # deflection rotor 
-w4 = rr*w2*~rr                          # rotate input by defletion angle
-s4 = (e**(w4*b4))(0,1)                  # particle two output boost
-ST4 = m2*s4                             # particle two output state paravector
-ST3 = (ST1+ST2-ST4)                     # particle one output state paravector
-
-b3 = ((ST3).dePara())[1]
-w3 = ((ST3).dePara())[2]
-s3 = ST3/m1
-vv = (ST4-ST2)(1).normal()
-k2 = (ST4/m_0)(0)
-
-alice = pi*5/6
-bob   = pi*5/7
-
-RA = qga.phase2(alice, -alice)
-RB = qga.phase2(bob, -bob)
-
-DA = dyad(RA, one)
-DB = dyad(one, RB)
-
-VA = RA*e3*~RA
-VB = RB*e3*~RB
-
-st1 = ST1/m0
-st2 = ST2/m0
-st3 = ST3/m0
-st4 = ST4/m0
-
-sti = st1+st2
 
 t1 = tanh(1)
 l1 = log(1)
@@ -1383,17 +1333,3 @@ def randWeyl():
     """ generate normalized random state in the in/out basis """
     a,b,c,d = qga.compQuad()
     return (dyad(a,one)*l_l+dyad(b,one)*l_r+dyad(c,one)*r_l+dyad(d,one)*r_r)
-
-rm1 = qga.randMV()
-cv1= rm1.vector
-nv1= cv1.normal()
-
-rm2 = qga.randMV()
-cv2= rm2.vector
-nv2= cv2.normal()
-
-psi = e**cv1
-phi = e**cv2
-
-bv = (e**(v/2)).low
-bw = (e**(w/4)).low
