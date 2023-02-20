@@ -132,6 +132,12 @@ class mvec(MultiVector):
         """ raise a real number to a multivector power """
         if other == e: return self.exp(_nonstd)
         return super().__rpow__(other)
+    def __or__(self, other):
+        """ override or symbol for symetric product"""
+        return acomm(self, other)/2
+    def __xor__(self, other):
+        """ override xor symbol for anti-symetric product"""
+        return comm(self, other)/2
     def mag(self):
         """ calculate the magnitude of a multivector """
         return sqrt((self**2).scalar.comp())*_one        
@@ -219,7 +225,7 @@ class mvec(MultiVector):
         return self / other.neg_odd()
     def expect(self, oper):
         """ calculate the expectation value for an operator """
-        return ~self * oper * self
+        return (~self * oper * self)(0)
     def tinspect(self, oper):
         """ calculate the tilda inspection value for an operator """
         return self * oper * self.tilda()
