@@ -39,6 +39,7 @@ _linelen = 120          # display line length
 _interact = True        # interactive mode
 _nonstd = False         # use special power series expansion
 _ecnt = 25              # exponential iteration count
+_separator = '*'        # blade display character  
 
 
 def errmsg(msg):
@@ -109,12 +110,12 @@ class mvec(MultiVector):
                 if self.value[i] > 0.0:
                     if len(str) != 0: str += ' + '
                     str += '%s' % (round(self.value[i], _places))
-                    if i > 0: str += '^%s' % (layout.names[i])
+                    if i > 0: str += '%s%s' % (_separator, layout.names[i])
                 else:
                     if len(str) == 0: str = '-'
                     else: str += ' - '
                     str += '%s' % (-round(self.value[i], _places))
-                    if i > 0: str += '^%s' % (layout.names[i])
+                    if i > 0: str += '%s%s' % (_separator, layout.names[i])
         if str == '' : str = '0.0'
         return str
     def __mul__(self, other):
@@ -132,11 +133,14 @@ class mvec(MultiVector):
         """ raise a real number to a multivector power """
         if other == e: return self.exp(_nonstd)
         return super().__rpow__(other)
-    def __or__(self, other):
-        """ override or symbol for symetric product"""
+    def __mod__(self, other):
+        """ override % for commutator product """
+        return comm(self(2), other(2)/2)
+    def sym(self, other):
+        """ calculate symetric product of multivectors """
         return acomm(self, other)/2
-    def __xor__(self, other):
-        """ override xor symbol for anti-symetric product"""
+    def asym(self, other):
+        """ calculate anti-symetric product of multivectors """
         return comm(self, other)/2
     def mag(self):
         """ calculate the magnitude of a multivector """
