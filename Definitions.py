@@ -8,7 +8,7 @@ Created on Jan  25 11:06:18 2023
 from clifford import MVArray
 from QuantumGA import _e1, _e2, _e3, _e12, _e13, _e23, _e123, _zero, _one
 from QuantumGA import tract, dyad, triad, places, linelen, ecount
-from numpy import sqrt, e, pi, sin, cos, sinh, cosh, tanh, log, array
+from numpy import sqrt, e, pi, sin, cos, tan, sinh, cosh, tanh, log, array
 
 import QuantumGA as qga
 import numpy as np
@@ -1314,8 +1314,6 @@ m3 = Me                                 # particle three is a electron
 m4 = m_0                                # particle four is a massive photon
 theta = pi*30/180
 
-t1 = tanh(1)
-l1 = log(1)
 
 def randState():
     """ generate normalized random state in the up/down basis """

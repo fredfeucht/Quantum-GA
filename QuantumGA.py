@@ -564,6 +564,15 @@ class mvec(MultiVector):
             return sqrt(self.comp())*_one
         errmsg("Object is not scalar")
         return
+    def cos(self):
+        """ find the cosine of a multivector """
+        return (e**(_e123*self) + e**-(_e123*self))/2
+    def sin(self):
+        """ find the sine of a multivector """
+        return (e**(_e123*self) - e**-(_e123*self))/(2*_e123)
+    def tan(self):
+        """ find the tangent of a multivector """
+        return self.sin()/self.cos()
     def cosh(self):
         """ find the hyperbolic cosine of a multivector """
         return (e**self + e**-self)/2
