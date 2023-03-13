@@ -267,12 +267,18 @@ class mvec(MultiVector):
         return self.neg_odd()
 #    def star(self):
 #        return (self-2*self(3))
-    def project(self, vec):
+    def para(self, vec):
         """ find a multivector subspace parallel to a given vector """
         return (self + vec*self*vec)/2      
-    def perpend(self, vec):
+    def perp(self, vec):
         """ find a multivector subspace perpendicular to a given vector """
         return (self - vec*self*vec)/2      
+    def tpara(self, vec):
+        """ find a multivector subspace parallel to a given realized vector """
+        return (self + vec*self*~vec)/2      
+    def tperp(self, vec):
+        """ find a multivector subspace perpendicula to a given realized vector """
+        return (self - vec*self*~vec)/2      
     def dual(self):
         """  dualize vector and bivector blades """
         return mvec.fromArray(matmul(_da, self.value))
