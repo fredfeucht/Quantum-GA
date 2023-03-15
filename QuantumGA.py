@@ -192,7 +192,7 @@ class mvec(MultiVector):
             errmsg("Argument must be a multivector"); return
         return self * other.neg_high()
     def tprod(self, other=0):
-        """ calculate the tilda product of multivectors """
+        """ calculate the R product of multivectors """
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a multivector"); return
@@ -210,7 +210,7 @@ class mvec(MultiVector):
             errmsg("Argument must be a multivector"); return
         return self * other.neg_odd()
     def tdiv(self, other=0):
-        """ calculate the tilda ratio of multivectors """
+        """ calculate the tilde ratio of multivectors """
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a multivector"); return
@@ -231,8 +231,8 @@ class mvec(MultiVector):
         """ calculate the expectation value for an operator """
         return (~self * oper * self)(0)
     def tinspect(self, oper):
-        """ calculate the tilda inspection value for an operator """
-        return self * oper * self.tilda()
+        """ calculate the tilde inspection value for an operator """
+        return self * oper * self.tilde()
     def binspect(self, oper):
         """ calculate the bar inspection value for an operator """
         return self * oper * self.bar()
@@ -257,7 +257,7 @@ class mvec(MultiVector):
     def flip(self):
         """  reverse bivectors only """
         return mvec.fromArray(self.value * _neg_bi)
-    def tilda(self):
+    def tilde(self):
         return self.neg_high()
     def bar(self):
         """ Clifford conjugate """
@@ -592,7 +592,7 @@ class mvec(MultiVector):
         """ root-square normalize a multivector """
         return self/self.mag()
     def enormal(self):
-        """ tilda product normalize a multivector """
+        """ tilde product normalize a multivector """
         return self/abs(self)
     def dt(self):
         """ return scalar magnitude """
@@ -988,7 +988,7 @@ class dyad(object):
     def star_left(self):
         """ complex conjugate left side of a dyad """
         return dyad.fromArray(self.value * _trans_left * _high_left)
-    def tilda(self):
+    def tilde(self):
         """ reverse both sides of dyads """
         return dyad.fromArray(self.value * _high_both)
     def trans(self):
@@ -1020,13 +1020,13 @@ class dyad(object):
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a dyad"); return
-        return self.tilda() * other
+        return self.tilde() * other
     def oprod(self, other=0):
         """ calculate outer product of spin dyad(s) """
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a dyad")
-        return self * other.tilda()
+        return self * other.tilde()
     def rprod(self, other=0):
         """ calculate outer product of relativistic dyad(s) """
         return self.oprod_con(other)
@@ -1474,7 +1474,7 @@ class triad(object):
         if scale1 == 'l':
             return tripleList([i.scale(1.0/abs(i.left)) for i in list if abs(i.left) > _minnum])
         return tripleList([i.scale(scale1, scale2) for i in list if abs(i.left) > _minnum])
-    def tilda(self):
+    def tilde(self):
         """ reverse triad blades """
         return triad.fromArray(self.value * _high_three)
     def normal(self):
@@ -1485,13 +1485,13 @@ class triad(object):
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a triad"); return
-        return self.tilda() * other
+        return self.tilde() * other
     def oprod(self, other=0):
         """ calculate outer product of triads """
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a triad"); return
-        return self * other.tilda()
+        return self * other.tilde()
 
 # define the internal blades
 

@@ -242,6 +242,12 @@ G7 = tract(g7, S4)
 
 I = G0*G1*G2*G3
 
+PG0 = -io*G5
+PG1 = -io*G1
+PG2 = -io*G2
+PG3 = -io*G3
+PG5 = -io*G0
+
 # define Dirac's original matrices
 
 a1 = array([[0, 0, 0, 1],
@@ -496,19 +502,13 @@ k3 = array([[ 0, 0, 0, 1],
             [ 0, 0, 0, 0],
             [ 1, 0, 0, 0]])
 
-J1 = tract(j1, S4)
-J2 = tract(j2, S4)
-J3 = tract(j3, S4)
+J1 = i*tract(j1, O4/4)
+J2 = i*tract(j2, O4/4)
+J3 = i*tract(j3, O4/4)
 
-K1 = tract(k1, S4)
-K2 = tract(k2, S4)
-K3 = tract(k3, S4)
-
-PG0 = -io*G5
-PG1 = -io*G1
-PG2 = -io*G2
-PG3 = -io*G3
-PG5 = -io*G0
+K1 = i*tract(k1, O4/4)
+K2 = i*tract(k2, O4/4)
+K3 = i*tract(k3, O4/4)
 
 # define some Bell space matrices
 
