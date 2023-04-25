@@ -478,7 +478,7 @@ class mvec(MultiVector):
         if self.zero > _minnum:
             b = a/self.zero**4
             if abs(b.zero) < _minnum:
-                print("Multivector is time-like")
+                print("Multivector is light-like")
                 b = log(2*self.zero+1)/2
                 return b*(1+self.vector.normal())
         s = self.bprod().scalar.slog()/2
@@ -610,10 +610,14 @@ class mvec(MultiVector):
     def low(self):
         """ return grade 0 and grade 1 blades """
         return self(0) + self(1)
+    lo = low
+    re = low
     @property
     def high(self):
         """ return grade 2 and grade 3 blades """
         return self(2) + self(3)
+    hi = high
+    im = high
     @property
     def vector(self):
         """ return grade 1 and grade 2 blades """
@@ -1113,8 +1117,8 @@ class dyad(object):
         list = self.dense()
         dd = dyad(_zero, _zero)
         for i in list.pair:
-            lf = i.left.ufact(low)
-            rf = i.right.ufact(low)
+            lf = i.left.ufact(low, True)
+            rf = i.right.ufact(low, True)
             if (lf == None or rf == None):
                 errmsg("Object cannot be factored in the up-up basis")
                 return
