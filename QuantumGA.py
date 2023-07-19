@@ -22,7 +22,7 @@
 """
 
 from numpy import array, ones, zeros, ma, mean, var, array_equal, tensordot
-from numpy import sqrt, e, pi, cos, sinh, cosh, log, inf
+from numpy import sqrt, e, pi, cos, sinh, cosh, log, inf, sign
 from numpy import arccos, arctan, arccosh, arctanh, arctan2
 from numpy import real, imag, dot, matmul, random, set_printoptions
 from clifford import Cl, pretty, MultiVector, eps
@@ -134,14 +134,20 @@ class mvec(MultiVector):
         if other == e: return self.exp(_nonstd)
         return super().__rpow__(other)
     def __mod__(self, other):
-        """ override % for commutator product """
+        """ override ampersand for commutator product of bivectors """
         return comm(self(2), other(2)/2)
     def sym(self, other):
-        """ calculate symetric product of multivectors """
-        return acomm(self, other)/2
+        """ calculate the symetric product between multivectors """
+        return acomm(other, self)/2
     def asym(self, other):
-        """ calculate anti-symetric product of multivectors """
-        return comm(self, other)/2
+        """ calculate the  anti-symetric tilde product """
+        return comm(other, self)/2
+    def tsym(self, other):
+        """ calculate the symetric tilde product """
+        return tacomm(other, self)/2
+    def tasym(self, other):
+        """ calculate the  anti-symetric product """
+        return tcomm(other, self)/2
     def mag(self):
         """ calculate the magnitude of a multivector """
         return sqrt((self**2).scalar.comp())*_one        
@@ -192,7 +198,7 @@ class mvec(MultiVector):
             errmsg("Argument must be a multivector"); return
         return self * other.neg_high()
     def tprod(self, other=0):
-        """ calculate the R product of multivectors """
+        """ calculate the tilde product of multivectors """
         if other == 0: other = self
         if type(other) != type(self):
             errmsg("Argument must be a multivector"); return
@@ -267,6 +273,12 @@ class mvec(MultiVector):
         return self.neg_odd()
 #    def star(self):
 #        return (self-2*self(3))
+    def proj(self, vec):
+        """ projection of a multivector in a given direction """
+        return (self|vec)/vec
+    def rej(self, vec):
+        """ rejection of a multivector in a given direction """
+        return (self^vec)/vec
     def para(self, vec):
         """ find a multivector subspace parallel to a given vector """
         return (self + vec*self*vec)/2      
@@ -304,10 +316,10 @@ class mvec(MultiVector):
             errmsg("Object must be a quaternion"); return
         a = self.value[0]
         b = abs(self(2))
-        if a == 0: return (abs(self(2)), pi/2*_one, self(2).normal())
+        if a == 0: return (abs(self(2)), pi/2*_one, self(2).enormal())
         c = arctan(b/abs(a))
         d = _e12
-        if b != 0.0: d = self(2).normal()
+        if b != 0.0: d = self(2).enormal()
         e = self(0)/cos(c)
         return (e, c, d)
     def dePara(self):
@@ -320,10 +332,10 @@ class mvec(MultiVector):
         if a == 0 or abs(w) > 1.0:
             errmsg("Object must be hyperbolic"); return
         if w == 1.0:
-            return(a, inf, self(1).normal())
+            return(a, inf, self(1).enormal())
         c = arctanh(w)
         d = _e1
-        if b != 0.0: d = self(1).normal()
+        if b != 0.0: d = self(1).enormal()
         e = self(0)/cosh(c)
         return (float(e), float(c), d)
     def deSara(self):
@@ -336,14 +348,14 @@ class mvec(MultiVector):
             errmsg("Object must be anti-hyperbolic"); return
         c = arctanh(a/b)
         d = _e1
-        if b != 0.0: d = self(1).normal()
+        if b != 0.0: d = self(1).enormal()
         e = self(0)/sinh(c)
         return (float(e), float(c), d)
     def deTrans(self):
         """ decompose Lorentz tranformation """
         ww = _zero
         if abs(self(2)) > _minnum:
-            ww = self(2).normal() * arctan(abs(self(2)/self(0)))
+            ww = self(2).enormal() * arctan(abs(self(2)/self(0)))
         zz = self*e**(-ww)
         if abs(zz(3)) > _minnum:
             "print(zz.value)"
@@ -355,7 +367,7 @@ class mvec(MultiVector):
         rr = sqrt(xx)
         vv = _zero
         if abs(zz(1)) > _minnum:
-            vv = zz(1).normal() * arctanh(abs(zz(1)/zz(0)))
+            vv = zz(1).enormal() * arctanh(abs(zz(1)/zz(0)))
         return (rr, vv, ww)
     def deState(self):
         """ decompose a relativistic paravector """
@@ -367,7 +379,7 @@ class mvec(MultiVector):
             errmsg("Object must be hyperbolic"); return
         c = _one*arctanh(b/a)
         d = _e1
-        if b != 0.0: d = self(1).normal()
+        if b != 0.0: d = self(1).enormal()
         e = _one*self(0)/cosh(abs(c))
         return (e, c, d)
     def deScrew(self):
@@ -401,9 +413,9 @@ class mvec(MultiVector):
             w = w2
         else:
             if abs(pv2) > _minnum:
-                if float(abs(abs(w1.normal()|w2.normal()) - 1.0)) > _minnum:
+                if float(abs(abs(w1.enormal()|w2.enormal()) - 1.0)) > _minnum:
                     errmsg("Object is not a linear screw"); return
-        v = w.normal()
+        v = w.enormal()
         w = pv1/pv0
         if abs(w) > 1.0:    
             errmsg("Object is not hyperbolic"); return
@@ -422,10 +434,10 @@ class mvec(MultiVector):
         v1 = None
         v2 = None
         if abs(self(1)) > _minnum:
-            v1 = self(1).normal()
+            v1 = self(1).enormal()
             l1 = abs(self(1))
         if abs(self(2)) > _minnum:
-            v2 = self(2).normal()/_e123
+            v2 = self(2).enormal()/_e123
             l2 = abs(self(2))
         return (l1, v1, l2, v2)        
     def getPlane(self):
@@ -473,7 +485,7 @@ class mvec(MultiVector):
     def log(self):
         """ find the natural logarithm of a multivector """
         if abs(self.scalar) < _minnum:
-                errmsg("A (complex) vector has no logarithm"); return
+            return _e123*pi/2 - _e123*pi*self/2
         a = self.bprod().tprod()
         if self.zero > _minnum:
             b = a/self.zero**4
@@ -482,8 +494,10 @@ class mvec(MultiVector):
                 b = log(2*self.zero+1)/2
                 return b*(1+self.vector.normal())
         s = self.bprod().scalar.slog()/2
-        v = self.bdiv().slog()/2
-        return s + v
+        v = (e**-s*self).slog()
+        if sign((e**(s+v)).zero) == sign(self.zero):
+            return s + v
+        return s + v + pi*_e123
     def slog(self):
         """ find the natural logarithm for a vector or scalar subspace """
         if abs(self.vector.mag()) > _minnum:
@@ -544,6 +558,31 @@ class mvec(MultiVector):
         if(low == True):
             return 2*(self[3] + self[5]*_e13 + self[6]*_e23 + self[7]*_e123)
         return 2*(self[0] + self[1]*_e1 + self[6]*_e23 + self[7]*_e123)
+    def cfact(self):
+        """ extract complex 4-vector coordinates of a multivector """
+        a = self.value[0] + self.value[7]*_e123        
+        b = self.value[1] + self.value[6]*_e123        
+        c = self.value[2] - self.value[5]*_e123        
+        d = self.value[3] + self.value[4]*_e123
+        return (a, b, c, d)
+    def splitp(self, vec):
+        """ separate out parallel and perpendicular components """
+        A = vec*self.lo
+        B = vec*self.hi
+        a = vec*A.lo
+        b = vec*A.hi
+        c = vec*B.lo
+        d = vec*B.hi
+        return (a+d, b+c)
+    def splitl(self):
+        """ split a transform into real and imaginary components """
+        l = self.log()
+        if l.scalar.emag() > _minnum: 
+            errmsg("Object is not a Lorentz transform")
+            return 
+        m = l.mag()
+        f = l.normal()
+        return (e**(f*m(0)), e**(f*m(3)))        
     def half(self):
         """ split a screw in two """
         ss = self.deScrew()
@@ -551,8 +590,11 @@ class mvec(MultiVector):
     def vs(self):
         """ divide the vector blades by the scalar blades """
         return self.vector/self.scalar
-    def proper(self):
-        """ convert a paravector to proper values """
+    def hilo(self):
+        """ divide the high grade blades by the low grade blades """
+        return self.hi/self.lo
+    def deprop(self):
+        """ convert a relativistic paravector to classical values """
         return (self/self.scalar)
     def comp(self):
         """ translate scalar multivector to complex number """
@@ -597,12 +639,15 @@ class mvec(MultiVector):
     def dt(self):
         """ return scalar magnitude """
         return self.oprod().value[0]
+    @property
     def dx(self):
         """ return e1 magnitude """
         return self.oprod().value[1]
+    @property
     def dy(self):
         """ return e2 magnitude """
         return self.oprod().value[2]
+    @property
     def dz(self):
         """ return e3 magnitude """
         return self.oprod().value[3]
@@ -1667,6 +1712,14 @@ def racomm(mv1, mv2):
     """ relativistic anti-commutator calculation """
     return (mv1*mv2.bar() + mv2*mv1.bar())
 
+def tcomm(mv1, mv2):
+    """ tilde commutator calculation """
+    return (mv1*mv2 - mv2*mv1.tilde())
+
+def tacomm(mv1, mv2):
+    """ tilde anti-commutator calculation """
+    return (mv1*mv2 + mv2*mv1.tilde())
+
 def rapido(theta, si, ss):
     """ find output rapidity given a deflection angle and reference boost """
     ba = si.dePara()[1]
@@ -1762,7 +1815,7 @@ def randQuat():
     b1 = (random.rand()-1/2)*_e12
     b2 = (random.rand()-1/2)*_e23
     b3 = (random.rand()-1/2)*_e13
-    b = (b1+b2+b3).normal()
+    b = (b1+b2+b3).enormal()
     return (m*e**(b*r)).even
 
 def randScrew():
@@ -1772,7 +1825,7 @@ def randScrew():
     v1 = scale*(random.rand()-1/2)*_e1
     v2 = scale*(random.rand()-1/2)*_e2
     v3 = scale*(random.rand()-1/2)*_e3
-    v = (v1+v2+v3).normal()
+    v = (v1+v2+v3).enormal()
     return e**(v*z)
 
 def randVec():
