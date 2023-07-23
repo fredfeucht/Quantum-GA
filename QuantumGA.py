@@ -148,12 +148,18 @@ class mvec(MultiVector):
     def tasym(self, other):
         """ calculate the  anti-symetric product """
         return tcomm(other, self)/2
-    def mag(self):
-        """ calculate the magnitude of a multivector """
-        return sqrt((self**2).scalar.comp())*_one        
     def emag(self):
         """ calculate the Euclidean magnitude """
         return abs(self)
+    def cmag(self):
+        """ calculate the complex magnitude of a multivector """
+        return sqrt((self**2).scalar.comp())*_one
+    def bmag(self):
+        """ calculate the bar-magnitude of a multivector """
+        return sqrt((self.bprod()).scalar.comp())*_one
+    def mag(self):
+        """ define default magnitude function """
+        return self.cmag()
     def exp(self, nonstd=False):
         """ approximate the power series sum of a multivector """
         term = _one
@@ -485,7 +491,9 @@ class mvec(MultiVector):
     def log(self):
         """ find the natural logarithm of a multivector """
         if abs(self.scalar) < _minnum:
-            return _e123*pi/2 - _e123*pi*self/2
+            n = self.normal()
+            m = self.mag()
+            return _e123*pi/2 - _e123*pi*n/2 + log(m)
         a = self.bprod().tprod()
         if self.zero > _minnum:
             b = a/self.zero**4
@@ -657,20 +665,25 @@ class mvec(MultiVector):
         return self(0) + self(1)
     lo = low
     re = low
+    real = low
     @property
     def high(self):
         """ return grade 2 and grade 3 blades """
         return self(2) + self(3)
     hi = high
     im = high
+    imag = high
     @property
     def vector(self):
         """ return grade 1 and grade 2 blades """
         return self(1) + self(2)
+    vec = vector
+    ve = vector
     @property
     def scalar(self):
         """ return grade 0 and grade 3 blades """
         return self(0) + self(3)
+    sc = scalar
     @property
     def zero(self):
         """ return grade 0 blade as a float """
