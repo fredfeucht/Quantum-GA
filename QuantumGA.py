@@ -491,8 +491,10 @@ class mvec(MultiVector):
     def log(self):
         """ find the natural logarithm of a multivector """
         if abs(self.scalar) < _minnum:
-            n = self.normal()
             m = self.mag()
+            if abs(m) < _minnum: 
+                errmsg("Cannot take the log if a null vector"); return
+            n = self.normal()
             return _e123*pi/2 - _e123*pi*n/2 + log(m)
         a = self.bprod().tprod()
         if self.zero > _minnum:
