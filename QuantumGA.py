@@ -160,6 +160,9 @@ class mvec(MultiVector):
     def mag(self):
         """ define default magnitude function """
         return self.cmag()
+    def norm(self):
+        """ calculate the Euclidean norm """
+        return self.emag()
     def exp(self, nonstd=False):
         """ approximate the power series sum of a multivector """
         term = _one
@@ -203,6 +206,8 @@ class mvec(MultiVector):
         if type(other) != type(self):
             errmsg("Argument must be a multivector"); return
         return self * other.neg_high()
+    ip = iprod
+    op = oprod
     def tprod(self, other=0):
         """ calculate the tilde product of multivectors """
         if other == 0: other = self
@@ -446,15 +451,25 @@ class mvec(MultiVector):
             v2 = self(2).enormal()/_e123
             l2 = abs(self(2))
         return (l1, v1, l2, v2)        
+    def deCvec(self):
+        """ decompose a complex vector """
+        if abs(self.sc) > _minnum:
+            errmsg("Object is not a complex vector"); return
+        m = self.mag()
+        f = self.normal()
+        a = f(1).normal()
+        c = f.getPlane()
+        l = f.getRapid()
+        return (m, a, c, l)
     def getPlane(self):
         """ return the plane of a complex vector """
         if abs(self(1)) < _minnum:
             errmsg("no vector component"); return
         if abs(self(2)) < _minnum:
             errmsg("no bivector component"); return
-        return (self(1)^self(2)/_e123).normal()
+        return (self(1)*self(2)).vnormal()
     def getRapid(self):
-        """ extract the internal rapidity from a joint """
+        """ extract the internal rapidity from a complex vector """
         if abs(self(1)) < _minnum:
             errmsg("no vector component"); return
         if abs(self(2)) < _minnum:
@@ -468,7 +483,7 @@ class mvec(MultiVector):
             errmsg("no bivector component"); return
         return self(1)^self(2)/_e123
     def getFlect(self, other):
-        """ find a reflector from one vector tp another """
+        """ find a reflector from one vector to another """
         if abs(self.scalar) > _minnum:
             errmsg("object is not a vector"); return
         if abs(other.scalar) > _minnum:
@@ -499,15 +514,16 @@ class mvec(MultiVector):
         a = self.bprod().tprod()
         if self.zero > _minnum:
             b = a/self.zero**4
-            if abs(b.zero) < _minnum:
+            if abs(a) < _minnum or abs(b.zero) < _minnum:
                 print("Multivector is light-like")
                 b = log(2*self.zero+1)/2
                 return b*(1+self.vector.normal())
         s = self.bprod().scalar.slog()/2
         v = (e**-s*self).slog()
-        if sign((e**(s+v)).zero) == sign(self.zero):
-            return s + v
-        return s + v + pi*_e123
+        if abs(self.zero) > _minnum:
+            if sign((e**(s+v)).zero) != sign(self.zero):
+                return s + v + pi*_e123
+        return s + v
     def slog(self):
         """ find the natural logarithm for a vector or scalar subspace """
         if abs(self.vector.mag()) > _minnum:
@@ -575,6 +591,43 @@ class mvec(MultiVector):
         c = self.value[2] - self.value[5]*_e123        
         d = self.value[3] + self.value[4]*_e123
         return (a, b, c, d)
+    def updn(self, evec=None, fvec=None):
+        """ find the spectral coordinates of a multivector  """
+        if evec == None: evec = _e3
+        if fvec == None: 
+            fvec = _e1
+            if abs(evec(1)) > _minnum and abs(evec(2)) > _minnum:
+                fvec = evec.normal().getPlane()
+        ket = (1+evec.normal())
+        vec = fvec.normal()
+        a = (self*ket).sc
+        b = (self*vec*ket).sc
+        c = (self*ket*vec).sc
+        d = (self*vec*ket*vec).sc
+        return (a, b, c, d)
+    def T(self, evec=None, fvec=None):
+        """ construct the transpose of a ket vector  """
+        if evec == None: evec = _e3
+        if fvec == None: 
+            fvec = _e1
+            if abs(evec(1)) > _minnum and abs(evec(2)) > _minnum:
+                fvec = evec.normal().getPlane()
+        dvec = _e123*fvec*evec
+        return (dvec*self.bar()*dvec)
+    def bra(self, evec=None, fvec=None):
+        """ construct the conjugate transpose of a ket vector  """
+        if evec == None: evec = _e3
+        if fvec == None: 
+            fvec = _e1
+            if abs(evec(1)) > _minnum and abs(evec(2)) > _minnum:
+                fvec = evec.normal().getPlane()
+        ket = (1+evec.normal())
+        vec = fvec.normal()
+        a = ~(self*ket).sc*ket/2
+        b = ~(self*vec*ket).sc*vec*ket/2
+        c = ~(self*ket*vec).sc*ket*vec/2
+        d = ~(self*vec*ket*vec).sc*vec*ket*vec/2        
+        return a+b+c+d
     def splitp(self, vec):
         """ separate out parallel and perpendicular components """
         A = vec*self.lo
@@ -642,25 +695,37 @@ class mvec(MultiVector):
         return (e**self - e**-self)/(e**self + e**-self)
     def normal(self):
         """ root-square normalize a multivector """
+        if abs(self.mag()) < _minnum:
+            errmsg("Object is a null vector")
+            return
         return self/self.mag()
     def enormal(self):
         """ tilde product normalize a multivector """
         return self/abs(self)
+    def snormal(self):
+        """ scalar normalize a multivector """
+        if abs(self.sc) < _minnum:
+            errmsg("Object has no scalar components"); return
+        return self/self.sc
+    def vnormal(self):
+        """ return the normalize vector components """
+        return self.vector.normal()
+    @property
     def dt(self):
         """ return scalar magnitude """
-        return self.oprod().value[0]
+        return self.oprod()(0)
     @property
     def dx(self):
         """ return e1 magnitude """
-        return self.oprod().value[1]
+        return self.oprod().x*_one
     @property
     def dy(self):
         """ return e2 magnitude """
-        return self.oprod().value[2]
+        return self.oprod().y*_one
     @property
     def dz(self):
         """ return e3 magnitude """
-        return self.oprod().value[3]
+        return self.oprod().z*_one
     @property
     def low(self):
         """ return grade 0 and grade 1 blades """
@@ -679,8 +744,8 @@ class mvec(MultiVector):
     def vector(self):
         """ return grade 1 and grade 2 blades """
         return self(1) + self(2)
-    vec = vector
     ve = vector
+    vec = vector
     @property
     def scalar(self):
         """ return grade 0 and grade 3 blades """
@@ -695,33 +760,61 @@ class mvec(MultiVector):
         """ return grade 3 blade as a float """
         return self.value[7]
     @property
-    def x(self):
+    def e1(self):
         """ return e1 blade """
         return self.value[1]*_e1
     @property
-    def y(self):
+    def e2(self):
         """ return ey blade """
         return self.value[2]*_e2
     @property
-    def z(self):
+    def e3(self):
         """ return e3 blade """
         return self.value[3]*_e3
     @property
-    def xy(self):
+    def e12(self):
         """ return e12 blade only """
         return self[4]*_e12
     @property
-    def xz(self):
+    def e13(self):
         """ return e13 blade only """
         return self[5]*_e13
     @property
-    def yz(self):
+    def e23(self):
         """ return e23 blade only """
         return self[6]*_e23
     @property
-    def xyz(self):
+    def e123(self):
         """ return e123 blade only """
         return self[7]*_e123
+    @property
+    def x(self):
+        """ return e1 blade """
+        return self.value[1]
+    @property
+    def y(self):
+        """ return ey blade """
+        return self.value[2]
+    @property
+    def z(self):
+        """ return e3 blade """
+        return self.value[3]
+    @property
+    def xy(self):
+        """ return e12 blade only """
+        return self[4]
+    @property
+    def xz(self):
+        """ return e13 blade only """
+        return self[5]
+    @property
+    def yz(self):
+        """ return e23 blade only """
+        return self[6]
+    @property
+    def xyz(self):
+        """ return e123 blade only """
+        return self[7]
     @property
     def points(self):
         """ return 3D vector as a list of floats """
@@ -1091,6 +1184,8 @@ class dyad(object):
         if type(other) != type(self):
             errmsg("Argument must be a dyad")
         return self * other.tilde()
+    op = oprod
+    ip = iprod
     def rprod(self, other=0):
         """ calculate outer product of relativistic dyad(s) """
         return self.oprod_con(other)
@@ -1696,8 +1791,13 @@ def R13(alice, bob):
     """ create a pair of rotations in the e13 plane """
     return dyad(PS2(alice,-alice), PS2(bob,-bob))
 
+def dip(mv1, mv2=None):
+    """ alternate Dirac inner product """
+    if mv2 == None: mv2 = mv1
+    return acomm(mv1,mv2).sc
+
 def iprod(mv1, mv2=0):
-    """ calculate the Dirac inner product """
+    """ calculate the Dirac outer product """
     if mv2 == 0: return ~mv1*mv1
     return ~mv1*mv2
 
@@ -1705,6 +1805,11 @@ def oprod(mv1, mv2=0):
     """ calculate the Dirac outer product """
     if mv2 == 0: return mv1*~mv1
     return mv1*~mv2
+
+def bracket(mv1, mv2=None):
+    """ alternate Dirac inner product """
+    if mv2 == None: mv2 = mv1
+    return acomm(mv1,mv2).sc
 
 def rprod(mv1, mv2=0):
     """ calculate the relativistic Dirac inner product """
