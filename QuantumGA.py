@@ -138,16 +138,16 @@ class mvec(MultiVector):
         return comm(self(2), other(2)/2)
     def sym(self, other):
         """ calculate the symetric product between multivectors """
-        return acomm(other, self)/2
+        return acomm(self, other)/2
     def asym(self, other):
         """ calculate the  anti-symetric tilde product """
-        return comm(other, self)/2
+        return comm(self, other)/2
     def tsym(self, other):
         """ calculate the symetric tilde product """
-        return tacomm(other, self)/2
+        return tacomm(self, other)/2
     def tasym(self, other):
         """ calculate the  anti-symetric product """
-        return tcomm(other, self)/2
+        return tcomm(self, other)/2
     def emag(self):
         """ calculate the Euclidean magnitude """
         return abs(self)
@@ -286,9 +286,15 @@ class mvec(MultiVector):
 #        return (self-2*self(3))
     def proj(self, vec):
         """ projection of a multivector in a given direction """
-        return (self|vec)/vec
+        return 2*self.sym(vec)/vec
     def rej(self, vec):
         """ rejection of a multivector in a given direction """
+        return 2*self.asym(vec)/vec
+    def vproj(self, vec):
+        """ projection of a vector in a given direction """
+        return (self|vec)/vec
+    def vrej(self, vec):
+        """ rejection of a vector in a given direction """
         return (self^vec)/vec
     def para(self, vec):
         """ find a multivector subspace parallel to a given vector """
@@ -298,10 +304,16 @@ class mvec(MultiVector):
         return (self - vec*self*vec)/2      
     def tpara(self, vec):
         """ find a multivector subspace parallel to a given realized vector """
-        return (self + vec*self*~vec)/2      
+        return (self + vec*self*vec.tilde())/2      
     def tperp(self, vec):
         """ find a multivector subspace perpendicula to a given realized vector """
-        return (self - vec*self*~vec)/2      
+        return (self - vec*self*vec.tilde())/2      
+    def bpara(self, vec):
+        """ find a multivector subspace parallel to a given invariant """
+        return (self + vec*self*vec.bar())/2      
+    def bperp(self, vec):
+        """ find a multivector subspace perpendicula to a given invariant """
+        return (self - vec*self*vec.bar())/2      
     def dual(self):
         """  dualize vector and bivector blades """
         return mvec.fromArray(matmul(_da, self.value))
@@ -482,6 +494,11 @@ class mvec(MultiVector):
         if abs(self(2)) < _minnum:
             errmsg("no bivector component"); return
         return self(1)^self(2)/_e123
+    def getMo(self):
+        """ extract the momentum 4-vector from a complex vector """
+        if abs(self(1)) < _minnum:
+            errmsg("no vector component"); return
+        return self/self(1).normal()
     def getFlect(self, other):
         """ find a reflector from one vector to another """
         if abs(self.scalar) > _minnum:
@@ -615,7 +632,7 @@ class mvec(MultiVector):
         dvec = _e123*fvec*evec
         return (dvec*self.bar()*dvec)
     def bra(self, evec=None, fvec=None):
-        """ construct the conjugate transpose of a ket vector  """
+        """ construct the conjugate transpose of a ket vector """
         if evec == None: evec = _e3
         if fvec == None: 
             fvec = _e1
@@ -1163,7 +1180,7 @@ class dyad(object):
     def con(self):
         """ reverse left and clifford conjugate right of dyad """
         return dyad.fromArray(self.value * _high_left * _vec_right)
-    def normal(self):
+    def enormal(self):
         """ convert to unit dyad """
         return self / abs(self)
     def norm2(self):
@@ -1279,6 +1296,36 @@ class dyad(object):
                 return
             dd += dyad(lf, rf)
         return dd
+    def updn(self, evec=None, fvec=None):
+        """ find the spectral coordinates of a dyadic spinor """
+        if evec == None: evec = dyad(_e3, _one)
+        if fvec == None: fvec = dyad(_e1, _one)
+        ket = (dyad(_one,_one)+evec)
+        vec = fvec
+        a = (self*ket).comp
+        b = (self*vec*ket).comp
+        c = (self*ket*vec).comp
+        d = (self*vec*ket*vec).comp
+        return (a, b, c, d)
+    def bra(self, evec=None, fvec=None):
+        """ find the conjugate transpose of a dyadic spinor """
+        if evec == None: evec = dyad(_e3, _one)
+        if (evec**2).comp != dyad(_one,_one):
+            evec = evec.normal()
+        if fvec == None: fvec = dyad(_e1, _one)
+        ket = (dyad(_one,_one)+evec)
+        vec = fvec
+        a = ~(self*ket).comp*ket/2
+        b = ~(self*vec*ket).comp*vec*ket/2
+        c = ~(self*ket*vec).comp*ket*vec/2
+        d = ~(self*vec*ket*vec).comp*vec*ket*vec/2        
+        return a+b+c+d
+    def normal(self):
+        """ normalize a dyadic biparavector """
+        mag2 = (self**2).comp
+        magc = sqrt(mag2.value[0,0] + 1j*mag2.value[7,0])
+        mag = _one*magc.real + _e123*magc.imag
+        return self*dyad(_one/mag,_one)
     def dt(self):
         """ calculate derivative with respect to time """
         return 4*abs(self.expect(dyad(_one,_one))(0))
@@ -1397,6 +1444,18 @@ class dyad(object):
         oa = array(self.value)
         oa[:,[0,7]] = 0
         return dyad.fromArray(oa)
+    @property
+    def cvector(self):
+        """ extract complex vector blades """ 
+        ca = array(self.value)
+        ca[0,0] = ca[0,7] = ca[7,0] = ca[7,7] = _zero
+        return dyad.fromArray(ca)
+    @property
+    def comp(self):
+        """ extract scalar and pseudoscalar blade as a complex """ 
+        sc = self.value[0,0] * dyad(_one,_one)
+        ps = self.value[7,0] * dyad(_e123,_one)
+        return sc + ps 
     @property
     def zero(self):
         """ extract scalar-scalar blade as a float """ 
