@@ -1315,17 +1315,24 @@ class dyad(object):
         if fvec == None: fvec = dyad(_e1, _one)
         ket = (dyad(_one,_one)+evec)
         vec = fvec
-        a = ~(self*ket).comp*ket/2
-        b = ~(self*vec*ket).comp*vec*ket/2
-        c = ~(self*ket*vec).comp*ket*vec/2
-        d = ~(self*vec*ket*vec).comp*vec*ket*vec/2        
+        a = dyad(~(self*ket).comp,_one)*ket/2
+        b = dyad(~(self*vec*ket).comp,_one)*vec*ket/2
+        c = dyad(~(self*ket*vec).comp,_one)*ket*vec/2
+        d = dyad(~(self*vec*ket*vec).comp,_one)*vec*ket*vec/2        
         return a+b+c+d
     def normal(self):
         """ normalize a dyadic biparavector """
-        mag2 = (self**2).comp
-        magc = sqrt(mag2.value[0,0] + 1j*mag2.value[7,0])
-        mag = _one*magc.real + _e123*magc.imag
+        mag = self.mag()
         return self*dyad(_one/mag,_one)
+    def snormal(self):
+        """ scalar normalize a dyadic biparavector """
+        mag = self.comp
+        return self*dyad(_one/mag,_one)
+    def mag(self):
+        """ calculate the magnitude of a dyadic biparavector """
+        mag = (self**2).comp
+        magc = sqrt(mag.value[0] + 1j*mag.value[7])
+        return _one*magc.real + _e123*magc.imag
     def dt(self):
         """ calculate derivative with respect to time """
         return 4*abs(self.expect(dyad(_one,_one))(0))
@@ -1445,17 +1452,33 @@ class dyad(object):
         oa[:,[0,7]] = 0
         return dyad.fromArray(oa)
     @property
-    def cvector(self):
-        """ extract complex vector blades """ 
-        ca = array(self.value)
-        ca[0,0] = ca[0,7] = ca[7,0] = ca[7,7] = _zero
+    def tvector(self):
+        """ extract complex gamma-vector blades """ 
+        ca = zeros((8,8))
+        cl = (3,0),(4,0),(2,1),(2,2),(2,3),(5,1),(5,2),(5,3)
+        for i in cl: ca[i] = self.value[i]
         return dyad.fromArray(ca)
     @property
-    def comp(self):
-        """ extract scalar and pseudoscalar blade as a complex """ 
+    def cvector(self):
+        """ extract complex gamma-vector blades """ 
+        ca = zeros((8,8))
+        cl = ((3,0),(4,0),
+              (1,1),(1,2),(1,3),(2,1),(2,2),(2,3),
+              (5,1),(5,2),(5,3),(6,1),(6,2),(6,3))
+        for i in cl: ca[i] = self.value[i]
+        return dyad.fromArray(ca)
+    @property
+    def compD(self):
+        """ extract scalar and pseudoscalar blade as a complex dyad """ 
         sc = self.value[0,0] * dyad(_one,_one)
         ps = self.value[7,0] * dyad(_e123,_one)
-        return sc + ps 
+        return sc + ps
+    @property
+    def comp(self):
+        """ extract scalar and pseudoscalar blade as a complex multivector """ 
+        sc = self.value[0,0] * _one
+        ps = self.value[7,0] * _e123
+        return sc + ps
     @property
     def zero(self):
         """ extract scalar-scalar blade as a float """ 
