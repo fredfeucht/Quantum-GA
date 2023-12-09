@@ -24,7 +24,7 @@
 from numpy import array, ones, zeros, ma, mean, var, array_equal, tensordot
 from numpy import sqrt, e, pi, cos, sinh, cosh, log, inf, sign
 from numpy import arccos, arctan, arccosh, arctanh, arctan2
-from numpy import real, imag, dot, matmul, random, set_printoptions
+from numpy import dot, matmul, random, set_printoptions
 from clifford import Cl, pretty, MultiVector, eps
 
 # initialize the G3 algebra
@@ -86,17 +86,17 @@ class mvec(MultiVector):
         super().__init__(layout, value=value, dtype=dtype)
     '''
     @staticmethod
-    def fromArray(array, mult=1.0):
+    def fromArray(array):
         """ construct a multivector from an 8-element complex array """
         if array.shape != (8,):
             errmsg("Array must be contain 8 elements"); return
         mv = mvec(layout,zeros(8))
         for i in range(8):
-            mv.value[i] += real(array[i]) * mult
-            jj = imag(array[i])
+            mv.value[i] += (array[i]).real.copy()
+            jj = (array[i]).imag.copy()
             if jj != 0.0:
                 if i in [2,4,6,7]: jj = -jj
-                mv.value[7-i] += jj * mult
+                mv.value[7-i] += jj
         return mv
     def fromComp(comp, mult=1.0):
         """ construct a multivecotr from a complex number """
@@ -120,6 +120,10 @@ class mvec(MultiVector):
         return str
     def __mul__(self, other):
         """ multiply a multivector by something """
+        if type(other) == type(_dyad):
+            return dyad(self, _one) * other
+        if type(other) == type(_triad):
+            return dyad(self, _one) * other
         rr = super().__mul__(other)
         return mvec.fromArray(rr.value)
     def __rmul__(self, other):
@@ -546,7 +550,8 @@ class mvec(MultiVector):
         if abs(self.vector.mag()) > _minnum:
             t = arccosh(self.scalar.comp())
             j = self.vector.normal()
-            if self.zero < 0.0: j = j.bar() 
+            if self.zero < 0.0 and abs(self(1)) > _minnum: 
+                j = j.bar() 
         else:
             t = log(self.scalar.comp())
             j = _one
@@ -622,6 +627,29 @@ class mvec(MultiVector):
         c = (self*ket*vec).sc
         d = (self*vec*ket*vec).sc
         return (a, b, c, d)
+    def toArray(self, basis):
+        """ convert multivector to 2x2 complex array """
+        a = zeros((2,2),dtype=complex)
+        t = basis.T
+        for i in range(2):
+            for j in range(2):
+                a[i,j] = (2*self*t[i,j]).scalar.comp()
+        return a
+    def scde(self, evec=None, fvec=None):
+        """ find the projected components of a ket vector """
+        if evec == None: evec = _e3
+        if fvec == None: 
+            fvec = _e1
+            if abs(evec(1)) > _minnum and abs(evec(2)) > _minnum:
+                fvec = evec.normal().getPlane()
+        uvec = evec.normal()
+        cvec = fvec.normal()
+        dvec = _e123*cvec*uvec
+        a = (self).sc
+        b = (self*cvec).sc
+        c = (self*dvec).sc
+        d = (self*uvec).sc
+        return (a, b, c, d)        
     def T(self, evec=None, fvec=None):
         """ construct the transpose of a ket vector  """
         if evec == None: evec = _e3
@@ -631,7 +659,22 @@ class mvec(MultiVector):
                 fvec = evec.normal().getPlane()
         dvec = _e123*fvec*evec
         return (dvec*self.bar()*dvec)
-    def bra(self, evec=None, fvec=None):
+    def tpose(self, evec=None, fvec=None):
+        """ construct the transpose of a ket vector """
+        if evec == None: evec = _e3
+        if fvec == None: 
+            fvec = _e1
+            if abs(evec(1)) > _minnum and abs(evec(2)) > _minnum:
+                fvec = evec.normal().getPlane()
+        uvec = evec.normal()
+        cvec = fvec.normal()
+        dvec = _e123*cvec*uvec
+        a = (self).sc
+        b = (self*uvec).sc*uvec
+        c = (self*cvec).sc*cvec
+        d = (self*dvec).sc*dvec        
+        return a+b+c-d
+    def bro(self, evec=None, fvec=None):
         """ construct the conjugate transpose of a ket vector """
         if evec == None: evec = _e3
         if fvec == None: 
@@ -645,6 +688,30 @@ class mvec(MultiVector):
         c = ~(self*ket*vec).sc*ket*vec/2
         d = ~(self*vec*ket*vec).sc*vec*ket*vec/2        
         return a+b+c+d
+    def bra(self, evec=None, fvec=None):
+        """ construct the conjugate transpose of a ket vector """
+        if evec == None: evec = _e3
+        if fvec == None: 
+            fvec = _e1
+            if abs(evec(1)) > _minnum and abs(evec(2)) > _minnum:
+                fvec = evec.normal().getPlane()
+        uvec = evec.normal()
+        cvec = fvec.normal()
+        dvec = _e123*cvec*uvec
+        a = ~(self).sc
+        b = ~(self*uvec).sc*uvec
+        c = ~(self*cvec).sc*cvec
+        d = ~(self*dvec).sc*dvec        
+        return a+b+c+d
+    def toMVarray(self):
+        """ convert multivector to 2x2 multivector array """
+        Left = ((_one+_e3)/2, (_one-_e3)/2)
+        Right = ((_one+_e3)/2,(_one-_e3)/2)
+        Array = zeros((2,2),dtype=mvec)
+        for i in range(2):
+            for j in range(2):
+                Array[i,j] = ((Left[i]*self*Right[j]))
+        return Array
     def splitp(self, vec):
         """ separate out parallel and perpendicular components """
         A = vec*self.lo
@@ -678,7 +745,7 @@ class mvec(MultiVector):
         return (self/self.scalar)
     def comp(self):
         """ translate scalar multivector to complex number """
-        if self.isComp == False:
+        if self.isComp() == False:
             errmsg("Object is not complex scalar")
             return
         return self[0] + self[7]*1j
@@ -688,7 +755,7 @@ class mvec(MultiVector):
         return True
     def sqrt(self):
         """ find the square root of a scalar multivector """
-        if self.isComp():
+        if self.isComp() == True:
             return sqrt(self.comp())*_one
         errmsg("Object is not scalar")
         return
@@ -749,14 +816,12 @@ class mvec(MultiVector):
         return self(0) + self(1)
     lo = low
     re = low
-    real = low
     @property
     def high(self):
         """ return grade 2 and grade 3 blades """
         return self(2) + self(3)
     hi = high
     im = high
-    imag = high
     @property
     def vector(self):
         """ return grade 1 and grade 2 blades """
@@ -924,18 +989,18 @@ class dyad(object):
         """ construct a dyad object from a pair object """
         return dyad(pair.left, pair.right)
     @staticmethod
-    def fromArray(array, more=1.0):
+    def fromArray(array):
         """ construct a dyad object from an 8 x 8 array """
         if array.shape != (8,8):
             errmsg("Array must be contain 8x8 elements"); return
         d = dyad(_zero, _zero)
         for i in range(8):
             for j in range(8):
-                d.value[i,j] += real(array[i,j]) * more
-                jj = imag(array[i,j])
+                d.value[i,j] += (array[i,j]).real.copy()
+                jj = (array[i,j]).imag.copy()
                 if jj != 0.0:
                     if i in [2,4,6,7]: jj = -jj
-                    d.value[7-i,j] += jj * more
+                    d.value[7-i,j] += jj
         return d
     def __repr__(self):
         """ create a displayable string for a dyad """
@@ -954,6 +1019,7 @@ class dyad(object):
         return dyad.fromArray(self.value - other.value)
     def __mul__(self, other):
         """ multiply a dyad with something """
+        if type(other) == type(_one): other = dyad(other, _one)
         if type(other) == type(self):
             l1 = self.tolist()
             l2 = other.tolist()
@@ -1284,6 +1350,16 @@ class dyad(object):
     def BAR(self):
         """ reverse Dirac and gamma blades """
         return ~self.rev()
+    def compD(self):
+        """ extract scalar and pseudoscalar blade as a complex dyad """ 
+        sc = (self.value[0,0]-self.value[7,7]) * _one
+        ps = (self.value[7,0]+self.value[0,7]) * _e123
+        return sc + ps
+    def comp(self):
+        """ extract scalar and pseudoscalar blade as a complex multivector """ 
+        sc = (self.value[0,0]-self.value[7,7]) * _one
+        ps = (self.value[7,0]+self.value[0,7]) * _e123
+        return (sc + ps).comp()
     def uufact(self, low=True):
         """ factor dyadic multivector in the up-up basis """
         list = self.dense()
@@ -1297,42 +1373,74 @@ class dyad(object):
             dd += dyad(lf, rf)
         return dd
     def updn(self, evec=None, fvec=None):
-        """ find the spectral coordinates of a dyadic spinor """
+        """ find the 2x2 spectral coordinates of a dyadic spinor """
         if evec == None: evec = dyad(_e3, _one)
         if fvec == None: fvec = dyad(_e1, _one)
-        ket = (dyad(_one,_one)+evec)
-        vec = fvec
-        a = (self*ket).comp
-        b = (self*vec*ket).comp
-        c = (self*ket*vec).comp
-        d = (self*vec*ket*vec).comp
+        ket = dyad(_one,_one) + evec.normal()
+        vec = fvec.normal()
+        a = (self*ket).compD()
+        b = (self*vec*ket).compD()
+        c = (self*ket*vec*ket).compD()
+        d = (self*vec*ket*vec).compD()
         return (a, b, c, d)
-    def bra(self, evec=None, fvec=None):
-        """ find the conjugate transpose of a dyadic spinor """
+    def UPDN(self, evec=None, lvec=None, rvec=None):
+        """ find the 2x2 spectral coordinates of a dyadic spinor """
+        if evec == None: evec = dyad(_one + _e3, _one + _e3)
+        if lvec == None: lvec = dyad(_e1, _one)
+        if rvec == None: rvec = dyad(_one, _e1)
+        a = (self*evec).compD()
+        b = (self*evec*rvec).compD()
+        c = (self*evec*lvec).compD()
+        d = (self*evec*rvec*lvec).compD()
+        return (a, b, c, d)
+    def scde(self, evec=None, fvec=None):
+        """ find the projected coordinates of a dyadic spinor """
         if evec == None: evec = dyad(_e3, _one)
-        if (evec**2).comp != dyad(_one,_one):
+        if fvec == None: fvec = dyad(_e1, _one)
+        dvec = dyad(_one,_e123)*fvec*evec        
+        s = (self).compD()
+        c = (self*fvec).compD()
+        d = (self*dvec).compD()
+        e = (self*evec).compD()
+        return (s, c, d, e)
+    def toArray(self, basis):
+        """ convert multivector to 4x4 complex array """
+        a = zeros((4,4),dtype=complex)
+        t = basis.T
+        for i in range(4):
+            for j in range(4):
+                a[i,j] = (4*self*t[i,j]).comp()
+        return a
+    def bra2(self, evec=None, fvec=None):
+        """ find the conjugate transpose in updn coordinates """
+        if evec == None: evec = dyad(_e3, _one)
+        if (evec**2).comp() != 1.0:
             evec = evec.normal()
         if fvec == None: fvec = dyad(_e1, _one)
         ket = (dyad(_one,_one)+evec)
         vec = fvec
-        a = dyad(~(self*ket).comp,_one)*ket/2
-        b = dyad(~(self*vec*ket).comp,_one)*vec*ket/2
-        c = dyad(~(self*ket*vec).comp,_one)*ket*vec/2
-        d = dyad(~(self*vec*ket*vec).comp,_one)*vec*ket*vec/2        
+        a = dyad(~((self*ket).compD()),_one)*ket/2
+        b = dyad(~((self*vec*ket).compD()),_one)*vec*ket/2
+        c = dyad(~((self*ket*vec).compD()),_one)*ket*vec/2
+        d = dyad(~((self*vec*ket*vec).compD()),_one)*vec*ket*vec/2
         return a+b+c+d
+    def bra(self, basis):
+        """ find the conjugate transpose of a dyad """
+        ar = self.toArray(basis)
+        return tract(ar.conj().T, basis)
     def normal(self):
         """ normalize a dyadic biparavector """
         mag = self.mag()
         return self*dyad(_one/mag,_one)
     def snormal(self):
         """ scalar normalize a dyadic biparavector """
-        mag = self.comp
-        return self*dyad(_one/mag,_one)
+        mag = self.comp()
+        return self*dyad((_one*1/mag),_one)
     def mag(self):
         """ calculate the magnitude of a dyadic biparavector """
-        mag = (self**2).comp
-        magc = sqrt(mag.value[0] + 1j*mag.value[7])
-        return _one*magc.real + _e123*magc.imag
+        mag = sqrt((self**2).comp())
+        # magc = sqrt(mag.value[0] + 1j*mag.value[7])
+        return _one*mag.real + _e123*mag.imag
     def dt(self):
         """ calculate derivative with respect to time """
         return 4*abs(self.expect(dyad(_one,_one))(0))
@@ -1348,6 +1456,28 @@ class dyad(object):
     def trace(self):
         """ calculate trace in Bloch space """
         return self.value[0,0]+self.value[1,1]+self.value[2,2]+self.value[3,3]
+    def hileft(self):
+        """ align high blades on left-hand side of dyad """
+        oa = array(self.value)
+        oa[:,[0,1,2,3]] = 0
+        hi = dyad.fromArray(oa)
+        return self - hi + hi*dyad(_e123,-_e123)
+        return self - self.high + self.high*dyad(_e123,-_e123)
+    hile = hileft
+    hili = hileft
+    def hiright(self):
+        """ align high blades on right-hand side of dyad """
+        oa = array(self.value)
+        oa[[0,1,2,3],:] = 0
+        hi = dyad.fromArray(oa)
+        return self - hi + hi*dyad(_e123,-_e123)
+    hiri = hiright
+    def gammaV(self):
+        s = self.value[3,0]*_one
+        x = -self.value[5,1]*_e1
+        y = -self.value[5,2]*_e2
+        z = -self.value[5,3]*_e3
+        return s + x + y + z
     @property
     def boost(self):
         """ extract boost dyadic blades """ 
@@ -1468,18 +1598,6 @@ class dyad(object):
         for i in cl: ca[i] = self.value[i]
         return dyad.fromArray(ca)
     @property
-    def compD(self):
-        """ extract scalar and pseudoscalar blade as a complex dyad """ 
-        sc = self.value[0,0] * dyad(_one,_one)
-        ps = self.value[7,0] * dyad(_e123,_one)
-        return sc + ps
-    @property
-    def comp(self):
-        """ extract scalar and pseudoscalar blade as a complex multivector """ 
-        sc = self.value[0,0] * _one
-        ps = self.value[7,0] * _e123
-        return sc + ps
-    @property
     def zero(self):
         """ extract scalar-scalar blade as a float """ 
         return self.value[0,0]
@@ -1555,10 +1673,24 @@ class triad(object):
         """ construct a triad object from a triple object """
         return triad(triple.left, triple.center, triple.right)
     @staticmethod
-    def fromArray(array, more=1.0):
+    def fromArray(array):
+        if array.shape != (8,8,8):
+            errmsg("Array must be contain 8x8x8 elements"); return
+        t = triad(_zero, _zero, _zero)
+        for i in range(8):
+            for j in range(8):
+                for k in range(8):
+                    rr = (array[i,j,k]).real.copy()
+                    if rr != 0.0:
+                        t.value[i,j,k] += rr
+                    jj = (array[i,j,k]).imag.copy()
+                    if jj != 0.0:
+                        if i in [2,4,6,7]: jj = -jj
+                        t.value[7-i,j,k] += jj
+        return t
         """ construct a triad object from an 8 x 8 x 8 array """
         t = triad(_zero, _zero, _zero)
-        if t.value.shape == array.shape: t.value = (array * more)
+        if t.value.shape == array.shape: t.value = (array)
         return t
     def __repr__(self):
         """ format a triad string """
@@ -1733,6 +1865,43 @@ class triad(object):
         if type(other) != type(self):
             errmsg("Argument must be a triad"); return
         return self * other.tilde()
+    def toArray(self, basis):
+        """ convert multivector to 8x8 complex array """
+        a = zeros((8,8),dtype=complex)
+        t = basis.T
+        for i in range(8):
+            for j in range(8):
+                a[i,j] = (8*self*t[i,j]).comp()
+        return a
+    def comp(self):
+        """ extract scalar and pseudoscalar blade as a complex multivector """ 
+        ar = self.value
+        sc = _one * (ar[0,0,0]-ar[0,7,7]-ar[7,0,7]-ar[7,7,0])
+        ps = _e123 * (ar[0,0,7]+ar[0,7,0]+ar[7,0,0]-ar[7,7,7])
+        return (sc + ps).comp()
+    def hileft(self):
+        """ align high blades on left-hand side of dyad """
+        oa = array(self.value)
+        oa[:,:,[0,1,2,3]] = 0
+        hi = triad.fromArray(oa)
+        it = self - hi + hi*triad(_e123, _one,-_e123)
+        oa = array(it.value)
+        oa[:,[0,1,2,3],:] = 0
+        hi = triad.fromArray(oa)
+        return it - hi + hi*triad(-_e123, _e123, _one)
+    hile = hileft
+    hili = hileft
+    def hiright(self):
+        """ align high blades on right-hand side of dyad """
+        oa = array(self.value)
+        oa[[0,1,2,3],:,:] = 0
+        hi = triad.fromArray(oa)
+        it = self - hi + hi*triad(_e123, _one,-_e123)
+        oa = array(it.value)
+        oa[:,[0,1,2,3],:] = 0
+        hi = triad.fromArray(oa)
+        return it - hi + hi*triad(_one, -_e123, _e123)
+    hiri = hiright
 
 # define the internal blades
 
@@ -1825,7 +1994,10 @@ _ua = array([[1, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 1, 0, 0, 0],
             [0, 0, 1, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 0, 0, 1]])   
+            [0, 0, 0, 0, 0, 0, 0, 1]])  
+
+_dyad  = dyad(_one, _one)
+_triad = triad(_one, _one, _one) 
     
 # define some helper functions
 

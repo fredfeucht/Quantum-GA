@@ -77,6 +77,13 @@ oz = dyad(one, e3)
 zo = dyad(e3, one)
 zz = dyad(e3, e3)
 
+xy = dyad(e1, e2)
+xz = dyad(e1, e3)
+yx = dyad(e2, e1)
+yz = dyad(e2, e3)
+zx = dyad(e3, e1)
+zy = dyad(e3, e2)
+
 # define the specular dyadic states
 
 u_u = dyad(u_ket, u_ket)
@@ -140,23 +147,41 @@ PSI_M = psi_m*~psi_m
 
 # define some dydic projection operators
 
-P31 = (oo + dyad(e3, one))/2.
-P13 = (oo + dyad(one, e3))/2.
-P33 = (oo + dyad(e3, e3))/2.
+P1 = (dyad(one, one) + dyad(e3, one))/2
+M1 = (dyad(one, one) - dyad(e3, one))/2
 
-M31 = (oo - dyad(e3, one))/2.
-M13 = (oo - dyad(one, e3))/2.
-M33 = (oo - dyad(e3, e3))/2.
+P2 = (dyad(one, one) + dyad(one, e3))/2
+M2 = (dyad(one, one) - dyad(one, e3))/2
+
+P3 = (dyad(one, one) + dyad(e3, e3))/2
+M3 = (dyad(one, one) - dyad(e3, e3))/2
+
+P5 = (dyad(one, one) + dyad(e1, one))/2
+M5 = (dyad(one, one) - dyad(e1, one))/2
+
+P6 = (dyad(one, one) + dyad(e2, one))/2
+M6 = (dyad(one, one) - dyad(e2, one))/2
+
+PL = M5
+PR = P5
 
 # define the 2x2 spectral matrix
 
 S2 = array(MVArray([u_ket, p_ket, d_ket, n_ket]).reshape(2, 2))
 
+"""
 # define the 3x3 (reduced 4x4) spectral matrix
 
 S3 = array([[u_u,               (u_p+p_u)/sqrt(2),    p_p],
             [(u_d+d_u)/sqrt(2), (u_n+p_d+d_p+n_u)/2, (p_n+n_p)/sqrt(2)],
             [d_d,               (d_n+n_d)/sqrt(2),    n_n]])
+"""
+
+# define the 3x3 (4x4 subspace) spectral matrix
+
+S3 = array([[u_n, p_d, p_n],
+            [d_p, n_u, n_p],
+            [d_n, n_d, n_n]])
 
 # define the 4x4 spectral matrix
 
@@ -470,7 +495,7 @@ CNOT2_BAR = tract(cnot2_bar, S4)
 NOT1_BAR  = tract(not1_bar, S4)
 NOT2_BAR  = tract(not2_bar, S4)
 
-# define a set of Lorentz generators
+# define a set of single-sided Lorentz generators
 
 j1 = array([[ 0, 0, 0, 0],
             [ 0, 0, 0, 0],
@@ -502,13 +527,33 @@ k3 = array([[ 0, 0, 0, 1],
             [ 0, 0, 0, 0],
             [ 1, 0, 0, 0]])
 
-J1 = i*tract(j1, O4/4)
-J2 = i*tract(j2, O4/4)
-J3 = i*tract(j3, O4/4)
+# Chiral basis generators
 
-K1 = i*tract(k1, O4/4)
-K2 = i*tract(k2, O4/4)
-K3 = i*tract(k3, O4/4)
+J1 = oi*tract(j1, S4)
+J2 = io*tract(j2, S4)
+J3 = oi*tract(j3, S4)
+
+K1 = oi*tract(k1, S4)
+K2 = io*tract(k2, S4)
+K3 = oi*tract(k3, S4)
+
+# Euclidean basis generators
+
+J1 = tract(j1, S4)
+J2 = tract(j2, S4)
+J3 = tract(j3, S4)
+
+K1 = tract(-k1, S4)
+K2 = tract(-k2, S4)
+K3 = tract(-k3, S4)
+
+J1p = (J1+io*K1)/2
+J2p = (J2+io*K2)/2
+J3p = (J3+io*K3)/2
+
+J1m = (J1-io*K1)/2
+J2m = (J2-io*K2)/2
+J3m = (J3-io*K3)/2
 
 # define some Bell space matrices
 
@@ -532,7 +577,7 @@ psi_minus=array([[ 0, 0, 0, 0],
                  [ 0,-1, 1, 0],
                  [ 0, 0, 0, 0]])
 
-# define the Gell Mann matrices
+# define the traditional Gell-Mann matrices
 
 gm1 = array([[ 0,  1,  0],
              [ 1,  0,  0],
@@ -573,6 +618,7 @@ gma = array([[ 1, 0, 0],
 gmb = array([[ 0, 0, 0],
              [ 0, 1, 0],
              [ 0, 0,-1]])
+
 
 GM1 = tract(gm1, S3)
 GM2 = tract(gm2, S3)
@@ -1056,24 +1102,6 @@ S1=dyad(s_ket, e1)
 T2=dyad(t_ket, e2)
 U3=dyad(u_ket, e3)
 
-P1 = (dyad(one, one) + dyad(e3, one))/2
-M1 = (dyad(one, one) - dyad(e3, one))/2
-
-P2 = (dyad(one, one) + dyad(one, e3))/2
-M2 = (dyad(one, one) - dyad(one, e3))/2
-
-P3 = (dyad(one, one) + dyad(e3, e3))/2
-M3 = (dyad(one, one) - dyad(e3, e3))/2
-
-P5 = (dyad(one, one) + dyad(e1, one))/2
-M5 = (dyad(one, one) - dyad(e1, one))/2
-
-P6 = (dyad(one, one) + dyad(e2, one))/2
-M6 = (dyad(one, one) - dyad(e2, one))/2
-
-PL = M5
-PR = P5
-
 m_state=bm*P1
 n_state=bn*P1
 v_state=bv*P1
@@ -1297,16 +1325,15 @@ wx = w.value[1]
 wy = w.value[2]
 wz = w.value[3]
 
-
 # we might need a bigger float for this
 
 v1 = e1                                 # photon direction
-k1 = 2*pi/2.00e-11                      # photon wave number
+f1 = 2*pi/2.00e-11                      # photon wave number
 w1 = e1*cos(pi*8/16)+e2*sin(pi*8/16)    # particle one boost direction
 w2 = e1*cos(pi*0/16)+e2*sin(pi*0/16)    # particle two boost direction
 b1 = 0.00000000001                      # particle one boost rapidity
-b2 = np.arcsinh(k1)                     # particle two boost rapidity
-# b2 = np.log(2*k1-1)                     # particle two boost rapidity
+b2 = np.arcsinh(f1)                     # particle two boost rapidity
+# b2 = np.log(2*f1-1)                     # particle two boost rapidity
 
 m1 = Me                                 # particle one is an electron
 m2 = m_0                                # particle two is a massive photon
@@ -1314,6 +1341,7 @@ m3 = Me                                 # particle three is a electron
 m4 = m_0                                # particle four is a massive photon
 theta = pi*30/180
 
+# A few global functions
 
 def randState():
     """ generate normalized random state in the up/down basis """
@@ -1331,3 +1359,24 @@ def randWeyl():
     """ generate normalized random state in the in/out basis """
     a,b,c,d = qga.compQuad()
     return (dyad(a,one)*l_l+dyad(b,one)*l_r+dyad(c,one)*r_l+dyad(d,one)*r_r)
+
+def det(updn):
+    """ find the determinant for a updn tuple """
+    return updn[0]*updn[3]-updn[1]*updn[2]    
+
+def Array2(mv):
+    """ convert multivector to 2x2 complex array """
+    Array = np.zeros((2,2),dtype=complex)
+    for i in range(2):
+        for j in range(2):
+            Array[i,j] = (2*mv*S2.T[i,j]).comp()
+    return Array
+
+def Array4(mv):
+    """ convert multivector to 4x4 complex array """
+    Array = np.zeros((4,4),dtype=complex)
+    for i in range(4):
+        for j in range(4):
+            Array[i,j] = ((4*mv*S4.T[i,j]).comp).comp()
+    return Array
+
