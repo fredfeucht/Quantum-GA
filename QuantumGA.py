@@ -745,10 +745,10 @@ class mvec(MultiVector):
         return (self/self.scalar)
     def comp(self):
         """ translate scalar multivector to complex number """
-        if self.isComp() == False:
-            errmsg("Object is not complex scalar")
-            return
         return self[0] + self[7]*1j
+    def compV(self):
+        """ translate scalar multivector to complex multivector """
+        return self(0) + self(3)
     def isComp(self):
         """ multivector is complex if it has no vector components """
         if abs(self.vector) > _minnum: return False
@@ -977,6 +977,7 @@ class pairList(list):
         return ' +\n'.join('%s' % (i) for i in self.pair)
 
 # define a general purpose two-qubit multivector class
+
 
 class dyad(object):
     """ dyadic multivector """
@@ -1269,6 +1270,12 @@ class dyad(object):
         return self * other.tilde()
     op = oprod
     ip = iprod
+    def bprod(self, other=0):
+        """ calculate clifford product of two dyad(s) """
+        if other == 0: other = self
+        if type(other) != type(self):
+            errmsg("Argument must be a dyad")
+        return self * other.bar()
     def rprod(self, other=0):
         """ calculate outer product of relativistic dyad(s) """
         return self.oprod_con(other)
@@ -1336,8 +1343,8 @@ class dyad(object):
             errmsg("Argument must be a dyad"); return
         return (self*other + other*self)
     def bar(self):
-        """ spatialy reverse the right-hand dyad  """
-        return self.con_right()
+        """ spatialy reverse the vector blades in a dyad  """
+        return self.scalar - self.vector
     def adj(self):
         """ calculate Dirac adjoint """
         return ~self * dyad(_e3,_one)
@@ -1350,11 +1357,16 @@ class dyad(object):
     def BAR(self):
         """ reverse Dirac and gamma blades """
         return ~self.rev()
+    def compV(self):
+        """ extract scalar and pseudoscalar blade as a complex multivector """ 
+        sc = (self.value[0,0]-self.value[7,7]) * _one
+        ps = (self.value[7,0]+self.value[0,7]) * _e123
+        return sc + ps
     def compD(self):
         """ extract scalar and pseudoscalar blade as a complex dyad """ 
         sc = (self.value[0,0]-self.value[7,7]) * _one
         ps = (self.value[7,0]+self.value[0,7]) * _e123
-        return sc + ps
+        return dyad(sc + ps, _one)
     def comp(self):
         """ extract scalar and pseudoscalar blade as a complex multivector """ 
         sc = (self.value[0,0]-self.value[7,7]) * _one
@@ -1378,30 +1390,30 @@ class dyad(object):
         if fvec == None: fvec = dyad(_e1, _one)
         ket = dyad(_one,_one) + evec.normal()
         vec = fvec.normal()
-        a = (self*ket).compD()
-        b = (self*vec*ket).compD()
-        c = (self*ket*vec*ket).compD()
-        d = (self*vec*ket*vec).compD()
+        a = (self*ket).compV()
+        b = (self*vec*ket).compV()
+        c = (self*ket*vec).compV()
+        d = (self*vec*ket*vec).compV()
         return (a, b, c, d)
-    def UPDN(self, evec=None, lvec=None, rvec=None):
-        """ find the 2x2 spectral coordinates of a dyadic spinor """
+    def left(self, evec=None, lvec=None, rvec=None):
+        """ extract the left-column states of a dyadic spinor """
         if evec == None: evec = dyad(_one + _e3, _one + _e3)
         if lvec == None: lvec = dyad(_e1, _one)
         if rvec == None: rvec = dyad(_one, _e1)
-        a = (self*evec).compD()
-        b = (self*evec*rvec).compD()
-        c = (self*evec*lvec).compD()
-        d = (self*evec*rvec*lvec).compD()
+        a = (self*evec).compV()
+        b = (self*evec*rvec).compV()
+        c = (self*evec*lvec).compV()
+        d = (self*evec*rvec*lvec).compV()
         return (a, b, c, d)
     def scde(self, evec=None, fvec=None):
         """ find the projected coordinates of a dyadic spinor """
         if evec == None: evec = dyad(_e3, _one)
         if fvec == None: fvec = dyad(_e1, _one)
         dvec = dyad(_one,_e123)*fvec*evec        
-        s = (self).compD()
-        c = (self*fvec).compD()
-        d = (self*dvec).compD()
-        e = (self*evec).compD()
+        s = (self).compV()
+        c = (self*fvec).compV()
+        d = (self*dvec).compV()
+        e = (self*evec).compV()
         return (s, c, d, e)
     def toArray(self, basis):
         """ convert multivector to 4x4 complex array """
@@ -1419,11 +1431,11 @@ class dyad(object):
         if fvec == None: fvec = dyad(_e1, _one)
         ket = (dyad(_one,_one)+evec)
         vec = fvec
-        a = dyad(~((self*ket).compD()),_one)*ket/2
-        b = dyad(~((self*vec*ket).compD()),_one)*vec*ket/2
-        c = dyad(~((self*ket*vec).compD()),_one)*ket*vec/2
-        d = dyad(~((self*vec*ket*vec).compD()),_one)*vec*ket*vec/2
-        return a+b+c+d
+        a = ~(self*ket).compD()*ket/2
+        b = ~(self*vec*ket).compD()*vec*ket/2
+        c = ~(self*ket*vec).compD()*ket*vec/2
+        d = ~(self*vec*ket*vec).compD()*vec*ket*vec/2
+        return a + b + c + d
     def bra(self, basis):
         """ find the conjugate transpose of a dyad """
         ar = self.toArray(basis)
@@ -1472,12 +1484,39 @@ class dyad(object):
         hi = dyad.fromArray(oa)
         return self - hi + hi*dyad(_e123,-_e123)
     hiri = hiright
+    def lorentzV(self):
+        ar = self.value
+        s = (ar[0,0] - ar[7,7])*_one
+        x = (ar[1,1] - ar[6,6])*_e1
+        y = (ar[1,2] + ar[6,5])*_e2
+        z = (ar[1,3] - ar[6,4])*_e3
+        xy = (ar[0,4] + ar[7,3])*_e12
+        xz = (ar[0,5]  - ar[7,2])*_e13
+        yz = (ar[0,6] + ar[7,1])*_e23
+        p = (ar[0,7] + ar[7,0])*_e123
+        return s + x + y + z +xy + yz + xz + p
     def gammaV(self):
-        s = self.value[3,0]*_one
-        x = -self.value[5,1]*_e1
-        y = -self.value[5,2]*_e2
-        z = -self.value[5,3]*_e3
-        return s + x + y + z
+        ar = self.value
+        s = (ar[3,0] - ar[4,7])*_one
+        x = (-ar[5,1] - ar[2,6])*_e1
+        y = (-ar[5,2] - ar[2,5])*_e2
+        z = (-ar[5,3] - ar[2,4])*_e3
+        xy = (-ar[5,4] - ar[2,3])*_e12
+        xz = (-ar[5,5] + ar[2,2])*_e13
+        yz = (-ar[5,6] - ar[2,1])*_e23
+        p = (ar[3,7] + ar[4,0])*_e123
+        return s + x + y + z +xy + yz + xz + p
+    def diracV(self):
+        ar = self.value
+        s = (ar[0,0] - ar[7,7])*_one
+        x = (ar[1,1] - ar[6,6])*_e1
+        y = (ar[1,2] + ar[6,5])*_e2
+        z = (ar[1,3] - ar[6,4])*_e3
+        xy = (ar[1,4] + ar[6,3])*_e12
+        xz = (ar[1,5] - ar[6,2])*_e13
+        yz = (ar[1,6] + ar[6,1])*_e23
+        p = (ar[0,7] + ar[7,0])*_e123
+        return s + x + y + z +xy + yz + xz + p
     @property
     def boost(self):
         """ extract boost dyadic blades """ 
@@ -1514,7 +1553,7 @@ class dyad(object):
     def weyl(self):
         """ extract Weyl dyadic blades """ 
         wb = zeros((8,8))
-        wl = (0,0),(1,0),(5,1),(5,2),(5,3)
+        wl = (0,0),(1,0),(3,1),(3,2),(3,3)
         for i in wl: wb[i] = self.value[i]
         return dyad.fromArray(wb)
     @property
@@ -1571,12 +1610,28 @@ class dyad(object):
         return dyad.fromArray(oa)
     @property
     def scalar(self):
+        """ extract complex scalar blades """ 
+        sa = zeros((8,8))
+        sl = (0,0),(7,0),(0,7),(7,7)
+        for i in sl: sa[i] = self.value[i]
+        return dyad.fromArray(sa)
+    sc = scalar
+    @property
+    def vector(self):
+        """ extract complex vector blades """ 
+        va = array(self.value)
+        vl = (0,0),(7,0),(0,7),(7,7)
+        for i in vl: va[i] = 0
+        return dyad.fromArray(va)
+    ve = vector
+    @property
+    def scalarR(self):
         """ extract scalar-on-right blades """ 
         ea = array(self.value)
         ea[:,[1,2,3,4,5,6]] = 0
         return dyad.fromArray(ea)
     @property
-    def vector(self):
+    def vectorR(self):
         """ extract vector-on-right blades """ 
         oa = array(self.value)
         oa[:,[0,7]] = 0
